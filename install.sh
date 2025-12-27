@@ -66,16 +66,19 @@ allowed = [
   "net.sourceforge.skim-app.skim",
   "com.beeper.beeper-desktop",
   "com.apple.Music",
-  "dev.orbstack.OrbStack",
+  "dev.kdrag0n.MacVirt",
   "com.flexibits.fantastical2.mac",
   "com.apple.Terminal",
   "com.apple.finder",
   "com.apple.systempreferences",
+  "com.sindresorhus.Lungo-setapp",
+  "bobko.aerospace",
+  "company.thebrowser.Browser",
 ]
 
 [websites]
 mode = "allowlist"
-allowed = ["github.com", "docs.rs", "crates.io", "localhost"]
+allowed = ["github.com", "docs.rs", "crates.io", "localhost", "claude.ai"]
 
 [hardcore]
 # What to do if tampering detected: "sleep", "shutdown", or "lock"
