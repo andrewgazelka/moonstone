@@ -41,8 +41,13 @@ impl Enforcer {
         }
     }
 
-    /// Single enforcement check
-    fn enforce_once(&mut self) {
+    /// Single enforcement check - kills frontmost app if blocked
+    pub fn enforce_once(&mut self) {
+        if !self.schedule.is_blocked() {
+            self.recently_killed.clear();
+            return;
+        }
+
         let Some(frontmost) = get_frontmost_app() else {
             debug!("Could not get frontmost app");
             return;
@@ -70,6 +75,25 @@ impl Enforcer {
         }
 
         self.recently_killed.insert(frontmost.bundle_id);
+    }
+
+    /// Kill all currently running blocked apps (called on startup)
+    pub fn kill_all_blocked(&self) {
+        use crate::accessibility::get_all_running_apps;
+
+        if !self.schedule.is_blocked() {
+            return;
+        }
+
+        info!("Scanning for blocked apps to kill on startup...");
+
+        let apps = get_all_running_apps();
+        for app in apps {
+            if !self.config.is_app_allowed(&app.bundle_id) && !app.bundle_id.is_empty() {
+                info!("Killing blocked app on startup: {} ({})", app.name, app.bundle_id);
+                self.kill_process(app.pid);
+            }
+        }
     }
 
     fn kill_process(&self, pid: i32) {

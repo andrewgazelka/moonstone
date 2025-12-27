@@ -74,7 +74,10 @@ async fn main() {
     }
 
     // Initialize enforcer
-    let enforcer = Enforcer::new(config.clone());
+    let mut enforcer = Enforcer::new(config.clone());
+
+    // Kill all blocked apps on startup
+    enforcer.kill_all_blocked();
 
     // Track emergency disable state
     let emergency_disabled = Arc::new(AtomicBool::new(false));
@@ -120,6 +123,9 @@ async fn main() {
                     }
                     continue;
                 }
+
+                // Run app enforcement
+                enforcer.enforce_once();
 
                 // Check if we should enable/disable network blocking
                 if enforcer.is_blocked() {
