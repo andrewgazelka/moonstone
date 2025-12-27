@@ -78,7 +78,27 @@ allowed = [
 
 [websites]
 mode = "allowlist"
-allowed = ["github.com", "docs.rs", "crates.io", "localhost", "claude.ai"]
+allowed = [
+  # Work
+  "github.com",
+  "raw.githubusercontent.com",
+  "objects.githubusercontent.com",
+  "api.github.com",
+  "docs.rs",
+  "crates.io",
+  "static.crates.io",
+  "index.crates.io",
+  "localhost",
+  # AI
+  "claude.ai",
+  "api.anthropic.com",
+  # OrbStack / Docker
+  "docker.io",
+  "registry-1.docker.io",
+  "auth.docker.io",
+  "production.cloudflare.docker.com",
+  "ghcr.io",
+]
 
 [hardcore]
 # What to do if tampering detected: "sleep", "shutdown", or "lock"
