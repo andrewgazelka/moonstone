@@ -69,7 +69,10 @@ impl NetworkBlocker {
              pass out quick proto { tcp, udp } to 185.199.108.0/22\n\
              pass out quick proto { tcp, udp } to 192.30.252.0/22\n\
              # Allow Apple services (Music, iCloud, etc)\n\
-             pass out quick proto { tcp, udp } to 17.0.0.0/8\n",
+             pass out quick proto { tcp, udp } to 17.0.0.0/8\n\
+             # Allow Akamai CDN (used by Apple Music, etc)\n\
+             pass out quick proto { tcp, udp } to 23.0.0.0/8\n\
+             pass out quick proto { tcp, udp } to 104.64.0.0/10\n",
         );
 
         if !self.allowed_ips.is_empty() {
