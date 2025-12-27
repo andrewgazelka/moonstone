@@ -107,10 +107,9 @@ impl Config {
     }
 
     pub fn config_path() -> PathBuf {
-        dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("/etc"))
-            .join("moonstone")
-            .join("config.toml")
+        // System-wide config at /etc/moonstone/config.toml
+        // This is the canonical location - works for both daemon (root) and CLI (user)
+        PathBuf::from("/etc/moonstone/config.toml")
     }
 
     pub fn is_app_allowed(&self, bundle_id: &str) -> bool {

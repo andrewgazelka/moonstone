@@ -70,6 +70,10 @@ impl IpcServer {
         let listener = UnixListener::bind(&path)?;
         listener.set_nonblocking(true)?;
 
+        // Make socket world-writable so non-root users can connect
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o777))?;
+
         info!("IPC server listening on {:?}", path);
 
         Ok(Self {

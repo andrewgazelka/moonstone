@@ -39,7 +39,8 @@ chmod +x /usr/local/bin/moonstone
 
 # Install default config if not exists
 echo "[4/7] Setting up configuration..."
-CONFIG_PATH="$ACTUAL_HOME/.config/moonstone/config.toml"
+mkdir -p /etc/moonstone
+CONFIG_PATH="/etc/moonstone/config.toml"
 if [ ! -f "$CONFIG_PATH" ]; then
     cat > "$CONFIG_PATH" << 'EOF'
 # Moonstone Configuration
@@ -89,7 +90,7 @@ lock_config = true
 # "instant" = no warning, "notify" = brief notification before kill
 kill_behavior = "instant"
 EOF
-    chown "$ACTUAL_USER" "$CONFIG_PATH"
+    chmod 644 "$CONFIG_PATH"
     echo "   Created default config at $CONFIG_PATH"
 else
     echo "   Config already exists, skipping"
