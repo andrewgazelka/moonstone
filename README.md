@@ -1,5 +1,8 @@
 # Moonstone
 
+<img width="1024" height="1536" alt="image" src="https://github.com/user-attachments/assets/46bc9bc9-71c9-4e3c-8e01-5e4fdd5f4ee2" />
+
+
 Hardcore macOS focus blocker. Blocks apps and websites with extreme prejudice.
 
 ## Philosophy
