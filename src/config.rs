@@ -34,13 +34,19 @@ pub struct BlockPeriod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppsConfig {
     pub mode: BlockMode,
-    pub allowed: Vec<String>, // Bundle IDs
+    #[serde(default)]
+    pub allowed: Vec<String>, // Bundle IDs to allow (used in allowlist mode)
+    #[serde(default)]
+    pub blocked: Vec<String>, // Bundle IDs to block (used in blocklist mode)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebsitesConfig {
     pub mode: BlockMode,
-    pub allowed: Vec<String>, // Domains
+    #[serde(default)]
+    pub allowed: Vec<String>, // Domains to allow (used in allowlist mode)
+    #[serde(default)]
+    pub blocked: Vec<String>, // Domains to block (used in blocklist mode)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -129,7 +135,7 @@ impl Config {
 
         match self.apps.mode {
             BlockMode::Allowlist => self.apps.allowed.iter().any(|a| a == bundle_id),
-            BlockMode::Blocklist => !self.apps.allowed.iter().any(|a| a == bundle_id),
+            BlockMode::Blocklist => !self.apps.blocked.iter().any(|a| a == bundle_id),
         }
     }
 
@@ -138,7 +144,7 @@ impl Config {
             BlockMode::Allowlist => self.websites.allowed.iter().any(|d| {
                 domain == *d || domain.ends_with(&format!(".{}", d))
             }),
-            BlockMode::Blocklist => !self.websites.allowed.iter().any(|d| {
+            BlockMode::Blocklist => !self.websites.blocked.iter().any(|d| {
                 domain == *d || domain.ends_with(&format!(".{}", d))
             }),
         }
@@ -174,6 +180,7 @@ impl Default for Config {
                     "com.apple.finder".to_string(),
                     "com.apple.systempreferences".to_string(),
                 ],
+                blocked: vec![],
             },
             websites: WebsitesConfig {
                 mode: BlockMode::Allowlist,
@@ -183,6 +190,7 @@ impl Default for Config {
                     "crates.io".to_string(),
                     "localhost".to_string(),
                 ],
+                blocked: vec![],
             },
             hardcore: HardcoreConfig {
                 on_tamper: TamperResponse::Sleep,
@@ -199,11 +207,49 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_default_config() {
+    fn test_default_config_allowlist() {
         let config = Config::default();
         assert!(config.is_app_allowed("com.apple.facetime"));
         assert!(!config.is_app_allowed("com.twitter.twitter"));
         assert!(config.is_website_allowed("github.com"));
         assert!(!config.is_website_allowed("twitter.com"));
+    }
+
+    #[test]
+    fn test_blocklist_mode_apps() {
+        let config = Config {
+            apps: AppsConfig {
+                mode: BlockMode::Blocklist,
+                allowed: vec![],
+                blocked: vec!["com.twitter.twitter".to_string()],
+            },
+            ..Config::default()
+        };
+        // Blocked apps should not be allowed
+        assert!(!config.is_app_allowed("com.twitter.twitter"));
+        // Unblocked apps should be allowed
+        assert!(config.is_app_allowed("com.some.random.app"));
+        // System essentials always allowed
+        assert!(config.is_app_allowed("com.apple.dock"));
+    }
+
+    #[test]
+    fn test_blocklist_mode_websites() {
+        let config = Config {
+            websites: WebsitesConfig {
+                mode: BlockMode::Blocklist,
+                allowed: vec![],
+                blocked: vec!["twitter.com".to_string(), "reddit.com".to_string()],
+            },
+            ..Config::default()
+        };
+        // Blocked sites should not be allowed
+        assert!(!config.is_website_allowed("twitter.com"));
+        assert!(!config.is_website_allowed("reddit.com"));
+        // Subdomains of blocked sites should also be blocked
+        assert!(!config.is_website_allowed("mobile.twitter.com"));
+        // Unblocked sites should be allowed
+        assert!(config.is_website_allowed("github.com"));
+        assert!(config.is_website_allowed("google.com"));
     }
 }
