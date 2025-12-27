@@ -63,7 +63,13 @@ impl NetworkBlocker {
              # Allow DNS for resolution\n\
              pass out quick proto { tcp, udp } to any port 53\n\
              # Allow DHCP\n\
-             pass out quick proto udp to any port { 67, 68 }\n",
+             pass out quick proto udp to any port { 67, 68 }\n\
+             # Allow GitHub CIDR ranges (they use many IPs)\n\
+             pass out quick proto { tcp, udp } to 140.82.112.0/20\n\
+             pass out quick proto { tcp, udp } to 185.199.108.0/22\n\
+             pass out quick proto { tcp, udp } to 192.30.252.0/22\n\
+             # Allow Apple services (Music, iCloud, etc)\n\
+             pass out quick proto { tcp, udp } to 17.0.0.0/8\n",
         );
 
         if !self.allowed_ips.is_empty() {
