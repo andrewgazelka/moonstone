@@ -61,7 +61,7 @@ mode = "allowlist"
 
 # Apps allowed during block periods (bundle IDs)
 allowed = [
-  "com.apple.facetime",
+  "com.apple.FaceTime",
   "com.mitchellh.ghostty",
   "net.sourceforge.skim-app.skim",
   "com.beeper.beeper-desktop",
