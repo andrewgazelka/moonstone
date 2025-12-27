@@ -64,11 +64,22 @@ async fn main() {
 
     // Initialize network blocker
     let mut network_blocker = NetworkBlocker::new();
+    network_blocker.set_mode(config.websites.mode.clone());
 
-    // Resolve allowed domains from config (allowlist mode: block everything except these)
-    let allowed_domains = config.websites.allowed.clone();
-    if let Err(e) = network_blocker.resolve_allowed_domains(&allowed_domains) {
-        warn!("Failed to resolve allowed domains: {}", e);
+    // Resolve domains based on mode
+    match config.websites.mode {
+        moonstone::config::BlockMode::Allowlist => {
+            let allowed_domains = config.websites.allowed.clone();
+            if let Err(e) = network_blocker.resolve_allowed_domains(&allowed_domains) {
+                warn!("Failed to resolve allowed domains: {}", e);
+            }
+        }
+        moonstone::config::BlockMode::Blocklist => {
+            let blocked_domains = config.websites.blocked.clone();
+            if let Err(e) = network_blocker.resolve_blocked_domains(&blocked_domains) {
+                warn!("Failed to resolve blocked domains: {}", e);
+            }
+        }
     }
 
     // Initialize enforcer

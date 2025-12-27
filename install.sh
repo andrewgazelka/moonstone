@@ -60,6 +60,7 @@ blocks = [
 mode = "allowlist"
 
 # Apps allowed during block periods (bundle IDs)
+# Used when mode = "allowlist"
 allowed = [
   "com.apple.FaceTime",
   "com.mitchellh.ghostty",
@@ -76,8 +77,21 @@ allowed = [
   "company.thebrowser.Browser",
 ]
 
+# Apps blocked during block periods (bundle IDs)
+# Used when mode = "blocklist"
+# blocked = [
+#   "com.apple.Safari",
+#   "com.google.Chrome",
+#   "org.mozilla.firefox",
+# ]
+
 [websites]
+# "allowlist" = block all sites except listed (hardcore mode)
+# "blocklist" = allow all sites except listed (casual mode)
 mode = "allowlist"
+
+# Websites allowed during block periods
+# Used when mode = "allowlist"
 allowed = [
   # Work
   "github.com",
@@ -99,6 +113,19 @@ allowed = [
   "production.cloudflare.docker.com",
   "ghcr.io",
 ]
+
+# Websites blocked during block periods
+# Used when mode = "blocklist"
+# blocked = [
+#   "twitter.com",
+#   "x.com",
+#   "reddit.com",
+#   "facebook.com",
+#   "instagram.com",
+#   "tiktok.com",
+#   "youtube.com",
+#   "news.ycombinator.com",
+# ]
 
 [hardcore]
 # What to do if tampering detected: "sleep", "shutdown", or "lock"

@@ -1,3 +1,4 @@
+use crate::config::BlockMode;
 use std::collections::HashSet;
 use std::net::ToSocketAddrs;
 use std::process::Command;
@@ -19,6 +20,8 @@ pub enum NetworkError {
 
 pub struct NetworkBlocker {
     allowed_ips: HashSet<String>,
+    blocked_ips: HashSet<String>,
+    mode: BlockMode,
     rules_active: bool,
 }
 
@@ -26,34 +29,63 @@ impl NetworkBlocker {
     pub fn new() -> Self {
         Self {
             allowed_ips: HashSet::new(),
+            blocked_ips: HashSet::new(),
+            mode: BlockMode::Allowlist,
             rules_active: false,
         }
     }
 
-    /// Resolve allowed domains to IP addresses
+    /// Set the blocking mode
+    pub fn set_mode(&mut self, mode: BlockMode) {
+        self.mode = mode;
+    }
+
+    /// Resolve allowed domains to IP addresses (for allowlist mode)
     pub fn resolve_allowed_domains(&mut self, allowed_domains: &[String]) -> Result<(), NetworkError> {
         self.allowed_ips.clear();
 
         for domain in allowed_domains {
-            match (domain.as_str(), 443).to_socket_addrs() {
-                Ok(addrs) => {
-                    for addr in addrs {
-                        let ip = addr.ip().to_string();
-                        debug!("Resolved {} -> {}", domain, ip);
-                        self.allowed_ips.insert(ip);
-                    }
-                }
-                Err(e) => {
-                    warn!("Failed to resolve {}: {}", domain, e);
-                }
-            }
+            self.resolve_domain_to_set(domain, &mut self.allowed_ips.clone())
+                .map(|ips| self.allowed_ips.extend(ips))
+                .ok();
         }
 
         info!("Resolved {} allowed IPs", self.allowed_ips.len());
         Ok(())
     }
 
-    /// Generate pf rules - allowlist mode: block all except allowed IPs
+    /// Resolve blocked domains to IP addresses (for blocklist mode)
+    pub fn resolve_blocked_domains(&mut self, blocked_domains: &[String]) -> Result<(), NetworkError> {
+        self.blocked_ips.clear();
+
+        for domain in blocked_domains {
+            self.resolve_domain_to_set(domain, &mut self.blocked_ips.clone())
+                .map(|ips| self.blocked_ips.extend(ips))
+                .ok();
+        }
+
+        info!("Resolved {} blocked IPs", self.blocked_ips.len());
+        Ok(())
+    }
+
+    fn resolve_domain_to_set(&self, domain: &str, _existing: &mut HashSet<String>) -> Result<HashSet<String>, NetworkError> {
+        let mut ips = HashSet::new();
+        match (domain, 443).to_socket_addrs() {
+            Ok(addrs) => {
+                for addr in addrs {
+                    let ip = addr.ip().to_string();
+                    debug!("Resolved {} -> {}", domain, ip);
+                    ips.insert(ip);
+                }
+            }
+            Err(e) => {
+                warn!("Failed to resolve {}: {}", domain, e);
+            }
+        }
+        Ok(ips)
+    }
+
+    /// Generate pf rules based on mode
     fn generate_rules(&self) -> String {
         let mut rules = String::from(
             "# Moonstone blocking rules - DO NOT EDIT\n\
@@ -63,41 +95,85 @@ impl NetworkBlocker {
              # Allow DNS for resolution\n\
              pass out quick proto { tcp, udp } to any port 53\n\
              # Allow DHCP\n\
-             pass out quick proto udp to any port { 67, 68 }\n\
-             # Allow GitHub CIDR ranges (they use many IPs)\n\
-             pass out quick proto { tcp, udp } to 140.82.112.0/20\n\
-             pass out quick proto { tcp, udp } to 185.199.108.0/22\n\
-             pass out quick proto { tcp, udp } to 192.30.252.0/22\n\
-             # Allow Apple services (Music, iCloud, etc)\n\
-             pass out quick proto { tcp, udp } to 17.0.0.0/8\n\
-             # Allow Akamai CDN (used by Apple Music, etc)\n\
-             pass out quick proto { tcp, udp } to 23.0.0.0/8\n\
-             pass out quick proto { tcp, udp } to 104.64.0.0/10\n",
+             pass out quick proto udp to any port { 67, 68 }\n",
         );
 
-        if !self.allowed_ips.is_empty() {
-            let ips: Vec<&str> = self.allowed_ips.iter().map(|s| s.as_str()).collect();
-            let ip_list = ips.join(", ");
-            rules.push_str(&format!(
-                "# Allow specific domains\n\
-                 pass out quick proto {{ tcp, udp }} to {{ {} }}\n",
-                ip_list
-            ));
+        match self.mode {
+            BlockMode::Allowlist => {
+                // Allowlist mode: allow specific IPs, block everything else
+                rules.push_str(
+                    "# Allow GitHub CIDR ranges (they use many IPs)\n\
+                     pass out quick proto { tcp, udp } to 140.82.112.0/20\n\
+                     pass out quick proto { tcp, udp } to 185.199.108.0/22\n\
+                     pass out quick proto { tcp, udp } to 192.30.252.0/22\n\
+                     # Allow Apple services (Music, iCloud, etc)\n\
+                     pass out quick proto { tcp, udp } to 17.0.0.0/8\n\
+                     # Allow Akamai CDN (used by Apple Music, etc)\n\
+                     pass out quick proto { tcp, udp } to 23.0.0.0/8\n\
+                     pass out quick proto { tcp, udp } to 104.64.0.0/10\n",
+                );
+
+                if !self.allowed_ips.is_empty() {
+                    let ips: Vec<&str> = self.allowed_ips.iter().map(|s| s.as_str()).collect();
+                    let ip_list = ips.join(", ");
+                    rules.push_str(&format!(
+                        "# Allow specific domains\n\
+                         pass out quick proto {{ tcp, udp }} to {{ {} }}\n",
+                        ip_list
+                    ));
+                }
+
+                // Block everything else
+                rules.push_str(
+                    "# Block all other outbound traffic\n\
+                     block drop out quick proto { tcp, udp } all\n",
+                );
+            }
+            BlockMode::Blocklist => {
+                // Blocklist mode: block specific IPs, allow everything else
+                // Common social media/distraction CIDR ranges
+                rules.push_str(
+                    "# Block common distraction site ranges\n\
+                     # Twitter/X\n\
+                     block drop out quick proto { tcp, udp } to 104.244.42.0/24\n\
+                     block drop out quick proto { tcp, udp } to 104.244.43.0/24\n\
+                     # TikTok\n\
+                     block drop out quick proto { tcp, udp } to 142.250.0.0/16\n\
+                     # Meta (Facebook, Instagram)\n\
+                     block drop out quick proto { tcp, udp } to 157.240.0.0/16\n\
+                     block drop out quick proto { tcp, udp } to 31.13.24.0/21\n\
+                     block drop out quick proto { tcp, udp } to 31.13.64.0/18\n\
+                     # Reddit\n\
+                     block drop out quick proto { tcp, udp } to 151.101.0.0/16\n",
+                );
+
+                if !self.blocked_ips.is_empty() {
+                    // Block specific resolved IPs
+                    for ip in &self.blocked_ips {
+                        rules.push_str(&format!(
+                            "block drop out quick proto {{ tcp, udp }} to {}\n",
+                            ip
+                        ));
+                    }
+                }
+
+                // Allow everything else
+                rules.push_str(
+                    "# Allow all other outbound traffic\n\
+                     pass out quick all\n",
+                );
+            }
         }
-
-        // Block everything else
-        rules.push_str(
-            "# Block all other outbound traffic\n\
-             block drop out quick proto { tcp, udp } all\n",
-        );
 
         rules
     }
 
     /// Write and load pf rules
     pub fn enable_blocking(&mut self) -> Result<(), NetworkError> {
-        if self.allowed_ips.is_empty() {
-            info!("No IPs to block, skipping pf setup");
+        // In allowlist mode, we need allowed IPs to know what to pass
+        // In blocklist mode, we can block even without specific IPs (using hardcoded ranges)
+        if self.mode == BlockMode::Allowlist && self.allowed_ips.is_empty() {
+            info!("No allowed IPs configured, skipping pf setup");
             return Ok(());
         }
 
@@ -161,6 +237,27 @@ impl Default for NetworkBlocker {
         Self::new()
     }
 }
+
+/// Known CIDR ranges for common distraction sites
+/// These are used in blocklist mode as a fallback
+pub const DISTRACTION_CIDRS: &[(&str, &str)] = &[
+    // Twitter/X
+    ("twitter.com", "104.244.42.0/24"),
+    ("twitter.com", "104.244.43.0/24"),
+    // Meta (Facebook, Instagram, WhatsApp)
+    ("facebook.com", "157.240.0.0/16"),
+    ("facebook.com", "31.13.24.0/21"),
+    ("facebook.com", "31.13.64.0/18"),
+    // Reddit (uses Fastly)
+    ("reddit.com", "151.101.0.0/16"),
+    // YouTube (uses Google)
+    ("youtube.com", "142.250.0.0/16"),
+    ("youtube.com", "172.217.0.0/16"),
+    // TikTok
+    ("tiktok.com", "142.250.0.0/16"),
+    // Snapchat
+    ("snapchat.com", "34.120.0.0/14"),
+];
 
 impl Drop for NetworkBlocker {
     fn drop(&mut self) {
