@@ -1,0 +1,45 @@
+[package]
+name = "moonstone"
+version = "0.1.0"
+edition = "2024"
+description = "Hardcore macOS focus blocker"
+license = "MIT"
+repository = "https://github.com/andrewgazelka/moonstone"
+
+[dependencies]
+tokio = { version = "1", features = ["full", "signal"] }
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+dirs = "5"
+thiserror = "2"
+libc = "0.2"
+nix = { version = "0.29", features = ["signal", "process"] }
+rand = "0.8"
+
+# macOS specific
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+core-graphics = "0.24"
+objc2 = "0.5"
+objc2-foundation = "0.2"
+objc2-app-kit = "0.2"
+
+[[bin]]
+name = "moonstone-daemon"
+path = "src/bin/moonstone-daemon.rs"
+
+[[bin]]
+name = "moonstone-watchdog"
+path = "src/bin/moonstone-watchdog.rs"
+
+[[bin]]
+name = "moonstone"
+path = "src/bin/moonstone-cli.rs"
+
+[profile.release]
+lto = true
+strip = true
