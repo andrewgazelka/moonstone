@@ -18,29 +18,29 @@ pub enum NetworkError {
 }
 
 pub struct NetworkBlocker {
-    blocked_ips: HashSet<String>,
+    allowed_ips: HashSet<String>,
     rules_active: bool,
 }
 
 impl NetworkBlocker {
     pub fn new() -> Self {
         Self {
-            blocked_ips: HashSet::new(),
+            allowed_ips: HashSet::new(),
             rules_active: false,
         }
     }
 
-    /// Resolve domains to IP addresses
-    pub fn resolve_domains(&mut self, blocked_domains: &[String]) -> Result<(), NetworkError> {
-        self.blocked_ips.clear();
+    /// Resolve allowed domains to IP addresses
+    pub fn resolve_allowed_domains(&mut self, allowed_domains: &[String]) -> Result<(), NetworkError> {
+        self.allowed_ips.clear();
 
-        for domain in blocked_domains {
+        for domain in allowed_domains {
             match (domain.as_str(), 443).to_socket_addrs() {
                 Ok(addrs) => {
                     for addr in addrs {
                         let ip = addr.ip().to_string();
                         debug!("Resolved {} -> {}", domain, ip);
-                        self.blocked_ips.insert(ip);
+                        self.allowed_ips.insert(ip);
                     }
                 }
                 Err(e) => {
@@ -49,30 +49,45 @@ impl NetworkBlocker {
             }
         }
 
-        info!("Resolved {} IPs to block", self.blocked_ips.len());
+        info!("Resolved {} allowed IPs", self.allowed_ips.len());
         Ok(())
     }
 
-    /// Generate pf rules for blocked IPs
+    /// Generate pf rules - allowlist mode: block all except allowed IPs
     fn generate_rules(&self) -> String {
-        if self.blocked_ips.is_empty() {
-            return String::new();
-        }
-
-        let ips: Vec<&str> = self.blocked_ips.iter().map(|s| s.as_str()).collect();
-        let ip_list = ips.join(", ");
-
-        format!(
+        let mut rules = String::from(
             "# Moonstone blocking rules - DO NOT EDIT\n\
              # Generated automatically\n\
-             block drop out quick proto {{ tcp, udp }} to {{ {} }}\n",
-            ip_list
-        )
+             # Allow loopback\n\
+             pass out quick on lo0 all\n\
+             # Allow DNS for resolution\n\
+             pass out quick proto { tcp, udp } to any port 53\n\
+             # Allow DHCP\n\
+             pass out quick proto udp to any port { 67, 68 }\n",
+        );
+
+        if !self.allowed_ips.is_empty() {
+            let ips: Vec<&str> = self.allowed_ips.iter().map(|s| s.as_str()).collect();
+            let ip_list = ips.join(", ");
+            rules.push_str(&format!(
+                "# Allow specific domains\n\
+                 pass out quick proto {{ tcp, udp }} to {{ {} }}\n",
+                ip_list
+            ));
+        }
+
+        // Block everything else
+        rules.push_str(
+            "# Block all other outbound traffic\n\
+             block drop out quick proto { tcp, udp } all\n",
+        );
+
+        rules
     }
 
     /// Write and load pf rules
     pub fn enable_blocking(&mut self) -> Result<(), NetworkError> {
-        if self.blocked_ips.is_empty() {
+        if self.allowed_ips.is_empty() {
             info!("No IPs to block, skipping pf setup");
             return Ok(());
         }
@@ -180,12 +195,15 @@ mod tests {
     #[test]
     fn test_generate_rules() {
         let mut blocker = NetworkBlocker::new();
-        blocker.blocked_ips.insert("1.2.3.4".to_string());
-        blocker.blocked_ips.insert("5.6.7.8".to_string());
+        blocker.allowed_ips.insert("1.2.3.4".to_string());
+        blocker.allowed_ips.insert("5.6.7.8".to_string());
 
         let rules = blocker.generate_rules();
+        // Should pass allowed IPs
         assert!(rules.contains("1.2.3.4"));
         assert!(rules.contains("5.6.7.8"));
-        assert!(rules.contains("block drop"));
+        assert!(rules.contains("pass out quick proto"));
+        // Should block everything else
+        assert!(rules.contains("block drop out quick"));
     }
 }

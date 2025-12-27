@@ -65,12 +65,10 @@ async fn main() {
     // Initialize network blocker
     let mut network_blocker = NetworkBlocker::new();
 
-    // Resolve blocked domains (everything NOT in allowlist needs blocking)
-    // For allowlist mode, we block common distracting sites
-    // In production, you'd want a more comprehensive list or use a blocklist approach
-    let blocked_domains = get_common_blocked_domains();
-    if let Err(e) = network_blocker.resolve_domains(&blocked_domains) {
-        warn!("Failed to resolve blocked domains: {}", e);
+    // Resolve allowed domains from config (allowlist mode: block everything except these)
+    let allowed_domains = config.websites.allowed.clone();
+    if let Err(e) = network_blocker.resolve_allowed_domains(&allowed_domains) {
+        warn!("Failed to resolve allowed domains: {}", e);
     }
 
     // Initialize enforcer
@@ -170,35 +168,3 @@ fn trigger_tamper_response(response: &TamperResponse) {
     }
 }
 
-/// Get list of commonly blocked domains for network blocking
-fn get_common_blocked_domains() -> Vec<String> {
-    vec![
-        // Social media
-        "twitter.com".to_string(),
-        "x.com".to_string(),
-        "facebook.com".to_string(),
-        "instagram.com".to_string(),
-        "tiktok.com".to_string(),
-        "snapchat.com".to_string(),
-        "linkedin.com".to_string(),
-        // Entertainment
-        "reddit.com".to_string(),
-        "youtube.com".to_string(),
-        "netflix.com".to_string(),
-        "twitch.tv".to_string(),
-        "hulu.com".to_string(),
-        "disneyplus.com".to_string(),
-        // News (often distracting)
-        "news.ycombinator.com".to_string(),
-        "hackernews.com".to_string(),
-        "cnn.com".to_string(),
-        "bbc.com".to_string(),
-        "nytimes.com".to_string(),
-        // Gaming
-        "store.steampowered.com".to_string(),
-        "discord.com".to_string(),
-        // Shopping
-        "amazon.com".to_string(),
-        "ebay.com".to_string(),
-    ]
-}

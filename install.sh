@@ -64,7 +64,7 @@ allowed = [
   "com.apple.FaceTime",
   "com.mitchellh.ghostty",
   "net.sourceforge.skim-app.skim",
-  "com.beeper.beeper-desktop",
+  "com.automattic.beeper.desktop",
   "com.apple.Music",
   "dev.kdrag0n.MacVirt",
   "com.flexibits.fantastical2.mac",
