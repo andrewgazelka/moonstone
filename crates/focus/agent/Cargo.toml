@@ -1,0 +1,20 @@
+[package]
+name = "focus-agent"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "focus-agent"
+path = "src/main.rs"
+
+[dependencies]
+color-eyre.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+chrono.workspace = true
+libc.workspace = true
+nix.workspace = true
+mdm-core.workspace = true

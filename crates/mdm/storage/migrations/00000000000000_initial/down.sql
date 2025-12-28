@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS cert_auth;
+DROP TABLE IF EXISTS bootstrap_tokens;
+DROP TABLE IF EXISTS push_certs;
+DROP TABLE IF EXISTS commands;
+DROP TABLE IF EXISTS enrollments;

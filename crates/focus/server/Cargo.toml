@@ -1,0 +1,25 @@
+[package]
+name = "focus-server"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "focus-server"
+path = "src/main.rs"
+
+[dependencies]
+color-eyre.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+serde.workspace = true
+mdm-core.workspace = true
+mdm-storage.workspace = true
+mdm-service.workspace = true
+mdm-http.workspace = true
+mdm-push.workspace = true
+focus-agent.workspace = true
